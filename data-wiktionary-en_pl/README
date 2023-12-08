@@ -1,0 +1,71 @@
+# Wiktionary data
+
+https://github.com/tatuylonen/wiktextract
+
+Extracted on Dec 2023.
+
+1) Download the raw Wiktionary data here: https://kaikki.org/dictionary/rawdata.html (JSON, one object per line).
+2) Execute the script to extract it:
+
+```py
+import os
+import json
+import argparse
+from pathlib import Path
+
+# Configure your source language and target language here:
+sl = 'en'
+tl = 'pl'
+
+parser = argparse.ArgumentParser()
+parser.add_argument("wikidata", help="path to Wiktionary JSON file")
+args = parser.parse_args()
+
+# Read JSON
+source_data = []
+target_data = []
+with open(args.wikidata) as f:
+    idx = 0
+    for line in f:
+        data = json.loads(line)
+        idx = idx + 1
+        if idx % 100000 == 0:
+            print(f"Processed {idx} lines")
+        word = data.get("word")
+        translations = data.get("translations")
+        lang_code = data.get("lang_code")
+        if not word or not translations:
+            continue
+        if lang_code == sl:
+            target_translations = list(filter(lambda x: x.get("code") == tl, translations))
+            if len(target_translations) < 1:
+                continue
+            target_translation = target_translations[0].get("word")
+            if not target_translation:
+                continue
+            source_data.append(word)
+            target_data.append(target_translation)
+        elif lang_code == tl:
+            target_translations = list(filter(lambda x: x.get("code") == sl, translations))
+            if len(target_translations) < 1:
+                continue
+            target_translation = target_translations[0].get("word")
+            if not target_translation:
+                continue
+            target_data.append(word)
+            source_data.append(target_translation)
+
+# Write to file
+for filename, data in [
+    ("wiktionary." + sl, source_data),
+    ("wiktionary." + tl, target_data),
+]:
+    filename = Path(filename)
+    assert not filename.exists()
+    data_file = open(filename, "w")
+    data_file.write("\n".join(data))
+    data_file.close()
+print("Wrote to wiktionary.*")
+```
+
+3) Then add everything to a folder and follow the argosdata structure (download one of the packages to see an example).
